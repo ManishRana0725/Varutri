@@ -1,0 +1,44 @@
+services:
+  # ── ML Sidecar (Python + FastAPI) ──────────────────────
+  ml-sidecar:
+    build: ./ml-sidecar
+    container_name: varutri-ml-sidecar
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    environment:
+      - TRANSFORMERS_CACHE=/app/.cache
+      - HF_HOME=/app/.cache
+
+  # ── Spring Boot Honeypot App ───────────────────────────
+  app:
+    container_name: varutri_honeypot
+    build: .
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    depends_on:
+      ml-sidecar:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - VARUTRI_API_KEY=${VARUTRI_API_KEY}
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - WHATSAPP_API_TOKEN=${WHATSAPP_API_TOKEN}
+      - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
+      - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN}
+      - LOCAL_ML_SERVICE_URL=http://ml-sidecar:8000
+    restart: unless-stopped
